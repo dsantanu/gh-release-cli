@@ -28,4 +28,24 @@ It’s lightweight, portable, and works with *any* language or repository layout
 
 ```bash
 ./release.sh [options]
+```
+| Option                | Description                                                               |
+| :-------------------- | :------------------------------------------------------------------------ |
+| `-f, --file <path>`   | Target file to extract version metadata (default: first `*.sh` / `*.py`). |
+| `-m, --message <msg>` | Custom commit message (default: “Release <version>”).                     |
+| `-d, --dry-run`       | Preview all actions without performing any Git changes.                   |
+| `-h, --help`          | Show usage help and exit.                                                 |
+
+---
+## 💡 Example
+```bash
+./release.sh --file main.py
+
+📄 Target file: main.py
+🧾 Version : v2.0.0
+💬 Commit  : Release v2.0.0
+🏷️  Tag Msg : main.py v2.0.0
+Proceed with release? [y/N]: y
+🎉 Done! Tagged v2.0.0, updated CHANGELOG, and pushed to origin.
+```
 
