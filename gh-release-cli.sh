@@ -1,124 +1,156 @@
 #!/usr/bin/env bash
 # ==========================================================
 # gh-release-cli.sh — Automated GitHub release helper
+# Name   : Github Release CLI
 # Author : Santanu Das (@dsantanu)  |  License: MIT
-# Version: v1.2.0
+# Version: v2.0.0
 # Desc   : Extract metadata, enforce version bump, prepend
 #          CHANGELOG, create tag and GitHub release (via gh)
 # ==========================================================
 set -euo pipefail
 
-SCRIPT="aws-cost-audit.sh"
+# --- CLI args ---------------------------------------------
+TARGET_FILE=""
 CHANGELOG="CHANGELOG.md"
-GITBRANCH="main"
+DRY_RUN=false
 
-# --- Metadata from script header -------------------------------------
-NAME=$(awk -F':' '/^# Name/    {print $2}' "${SCRIPT}" | xargs)
-AUTHOR=$(awk -F':' '/^# Author/  {print $2}' "${SCRIPT}" | xargs)
-VERSION=$(awk -F':' '/^# Version/ {print $2}' "${SCRIPT}" | xargs)
-DESC=$(awk -F':' '/^# Desc/     {print $2}' "${SCRIPT}" | xargs)
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [options]
 
+Options:
+  -f, --file <path>    File to release
+                       (default: first *.sh or main file)
+  -m, --message <msg>  Commit message
+                       (default: "Release <version>")
+  -d, --dry-run        Show what would be done
+                       (without changing anything)
+  -h, --help           Show this help and exit
+EOF
+}
+
+# --- Parse args -------------------------------------------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -f|--file) TARGET_FILE="$2"; shift 2 ;;
+    -m|--message) USER_COMMIT_MSG="$2"; shift 2 ;;
+    -d|--dry-run) DRY_RUN=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1"; usage; exit 1 ;;
+  esac
+done
+
+# --- Determine file ---------------------------------------
+if [[ -z "${TARGET_FILE}" ]]; then
+  TARGET_FILE=$(ls *.sh *.py *.go 2>/dev/null | head -n1 || true)
+fi
+[[ -z "${TARGET_FILE}" ]] && { echo "❌ No file specified or found."; exit 1; }
+[[ ! -f "${TARGET_FILE}" ]] && { echo "❌ Target file not found: ${TARGET_FILE}"; exit 1; }
+
+echo "📄 Target file: ${TARGET_FILE}"
+
+# --- Extract optional metadata ----------------------------
+NAME=$(awk -F':' '/^# Name/ {print $2}' "${TARGET_FILE}" | xargs || true)
+AUTHOR=$(awk -F':' '/^# Author/ {print $2}' "${TARGET_FILE}" | xargs || true)
+VERSION=$(awk -F':' '/^# Version/ {print $2}' "${TARGET_FILE}" | xargs || true)
+
+# --- Handle version ---------------------------------------
 if [[ -z "${VERSION}" ]]; then
-  echo "❌ VERSION not found in script header (expected line: '#  Version: vX.Y.Z')"
+  read -rp "Enter version (format vX.Y.Z): " VERSION
+fi
+
+SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
+if ! [[ "${VERSION}" =~ ${SEMVER_REGEX} ]]; then
+  echo "⛔ Invalid version format: '${VERSION}'"
+  echo "   Expected: vMAJOR.MINOR.PATCH (e.g., v1.0.0)"
   exit 1
 fi
 
-# --- Guard: detect script changes without version bump ----------------
-# If aws-cost-audit.sh has changes (staged or unstaged) AND the current header
-# VERSION already exists as a tag, we must bump Version before releasing.
 LATEST_TAG=$(git tag --sort=-v:refname | head -n1 || true)
 
-SCRIPT_CHANGED=false
-git diff --name-only -- "${SCRIPT}" | grep -q "^${SCRIPT}$" && SCRIPT_CHANGED=true
-git diff --cached --name-only -- "${SCRIPT}" | grep -q "^${SCRIPT}$" && SCRIPT_CHANGED=true
+# --- Detect file changes ----------------------------------
+FILE_CHANGED=false
+git diff --name-only -- "$TARGET_FILE" | grep -q "^${TARGET_FILE}$" && FILE_CHANGED=true
+git diff --cached --name-only -- "$TARGET_FILE" | grep -q "^${TARGET_FILE}$" && FILE_CHANGED=true
 
-if [[ "${SCRIPT_CHANGED}" == true && "${VERSION}" == "${LATEST_TAG}" ]]; then
-  echo "⛔ Detected changes in ${SCRIPT} but Version header is still '${VERSION}'."
-  echo "   Bump the header version in ${SCRIPT} (e.g., to vX.Y.Z) and re-run release."
+if [[ "${FILE_CHANGED}" == true && "${VERSION}" == "${LATEST_TAG}" ]]; then
+  echo "⛔ Detected changes in ${TARGET_FILE} but version header is still '${VERSION}'."
+  echo "   Please bump the version before releasing."
   exit 1
 fi
 
-# Optional: ensure we’re on main (comment out if you don’t want this)
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [[ "${CURRENT_BRANCH}" != "${GITBRANCH}" ]]; then
-  echo "⚠️  You are on branch: '"${CURRENT_BRANCH}"'...."
-  echo "   But releases are usually cut from '${GITBRANCH}'."
-  read -rp "Proceed anyway? [Y/N]: " PROCEED_NON_MAIN
-  [[ "${PROCEED_NON_MAIN}" =~ ^[Yy]$ ]] || { echo "❎ Aborted."; exit 0; }
-fi
-
-# --- Commit/tag messages ----------------------------------------------
+# --- Ask for messages -------------------------------------
 DEFAULT_COMMIT_MSG="Release ${VERSION}"
 read -rp "Enter commit message [${DEFAULT_COMMIT_MSG}]: " USER_COMMIT_MSG
-COMMIT_MSG="${USER_COMMIT_MSG:-${DEFAULT_COMMIT_MSG}}"
+COMMIT_MSG="${USER_COMMIT_MSG:-$DEFAULT_COMMIT_MSG}"
 
-DEFAULT_TAG_MSG="${NAME:-AWS Cost Audit} ${VERSION}"
+DEFAULT_TAG_MSG="${NAME:-Project} ${VERSION}"
 read -rp "Enter tag message [${DEFAULT_TAG_MSG}]: " USER_TAG_MSG
-TAG_MSG="New Release - ${USER_TAG_MSG:-${DEFAULT_TAG_MSG}}"
+TAG_MSG="${USER_TAG_MSG:-$DEFAULT_TAG_MSG}"
 
+# --- Preview ----------------------------------------------
 echo
 echo "🧾 Version : ${VERSION}"
 echo "💬 Commit  : ${COMMIT_MSG}"
 echo "🏷️ Tag Msg : ${TAG_MSG}"
-read -rp "Proceed with release? [Y/N]: " CONFIRM
+echo "📁 File    : ${TARGET_FILE}"
+echo "Dry Run    : ${DRY_RUN}"
+echo
+if [[ "${DRY_RUN}" == true ]]; then
+  echo "💡 Dry run only — no git actions performed."
+  exit 0
+fi
+read -rp "Proceed with release? [y/N]: " CONFIRM
 [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "❎ Aborted."; exit 0; }
 
-# --- Update CHANGELOG: insert after header section --------------------
+# --- Update CHANGELOG -------------------------------------
 DATE_STR=$(date +"%Y-%m-%d")
-
 if [[ -f "${CHANGELOG}" ]]; then
   TMP="$(mktemp)"
-
-  # Find where the first version section starts or where the header ends
   HEADER_END_LINE=$(grep -nE '^---|^## ' "${CHANGELOG}" | head -n1 | cut -d: -f1)
-
   if [[ -n "${HEADER_END_LINE}" ]]; then
     head -n "${HEADER_END_LINE}" "${CHANGELOG}" > "${TMP}"
     echo "" >> "${TMP}"
     echo "## ${VERSION} — ${DATE_STR}" >> "${TMP}"
+    echo "" >> "${TMP}"
     echo "- ${COMMIT_MSG}" >> "${TMP}"
+    echo "" >> "${TMP}"
     tail -n +"$((HEADER_END_LINE + 1))" "${CHANGELOG}" >> "${TMP}"
   else
-    # fallback if no header marker found
-    {
-      echo "# Changelog"
-      echo ""
-      echo "## ${VERSION} — ${DATE_STR}"
-      echo "- ${COMMIT_MSG}"
-      echo ""
-      cat "${CHANGELOG}"
-    } > "${TMP}"
+    echo "## ${VERSION} — ${DATE_STR}" > "${TMP}"
+    echo "" >> "${TMP}"
+    echo "- ${COMMIT_MSG}" >> "${TMP}"
+    echo "" >> "${TMP}"
+    cat "${CHANGELOG}" >> "${TMP}"
   fi
-
   mv "${TMP}" "${CHANGELOG}"
 else
   {
     echo "# Changelog"
     echo ""
-    echo "All notable changes to **AWS Cost Audit** will be documented in this file."
-    echo "This project follows [Semantic Versioning](https://semver.org/)."
+    echo "All notable changes will be documented in this file."
     echo ""
     echo "---"
     echo ""
     echo "## ${VERSION} — ${DATE_STR}"
+    echo ""
     echo "- ${COMMIT_MSG}"
     echo ""
   } > "${CHANGELOG}"
 fi
-#exit 0
 
-# --- Single atomic commit, tag, push ----------------------------------
-#git add "${SCRIPT}" "${CHANGELOG}"
-git commit -m "${COMMIT_MSG}" . || true
+# --- Git commit, tag, push --------------------------------
+git add "${TARGET_FILE}" "${CHANGELOG}"
+git commit -m "${COMMIT_MSG}" || true
 git tag -a "${VERSION}" -m "${TAG_MSG}"
-git push origin "${CURRENT_BRANCH}"
+git push origin HEAD
 git push origin "${VERSION}"
 
-# --- GitHub release (optional) ----------------------------------------
+# --- GitHub release (if gh exists) ------------------------
 if command -v gh >/dev/null 2>&1; then
-  echo "📡 Creating GitHub release from CHANGELOG..."
-  gh release create "${VERSION}" "${SCRIPT}" \
-    --title "${NAME:-AWS Cost Audit} ${VERSION}" \
+  echo "📡 Creating GitHub release..."
+  gh release create "${VERSION}" "${TARGET_FILE}" \
+    --title "${NAME:-$(basename "$(pwd)")}" \
     --notes-file "${CHANGELOG}"
   echo "✅ GitHub release published."
 else

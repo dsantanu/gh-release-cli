@@ -1,22 +1,23 @@
 # gh-release-cli
 > 🧰 A zero-dependency command-line tool to automate GitHub releases, version tagging, and changelog updates — written in pure Bash.
 
-## 🚀 Overview
 
-`gh-release-cli` streamlines your GitHub release process.  
+## 🚀 Overview
+`gh-release-cli` streamlines your GitHub release process.
 It detects version metadata, validates [Semantic Versioning](https://semver.org/), manages changelogs, creates git tags, and publishes releases — all from your terminal, no CI/CD pipeline required.
 
 It’s lightweight, portable, and works with *any* language or repository layout.
 
 ## ✨ Features
 
-✅ Repository-agnostic — works with any project or language  
-✅ Enforces **SemVer** (`vMAJOR.MINOR.PATCH`)  
-✅ Detects code changes and requires version bump before release  
-✅ Automatically updates **CHANGELOG.md** in place  
-✅ Creates **Git tags** and publishes GitHub releases  
-✅ Includes a **dry-run** mode for safe testing  
+✅ Repository-agnostic — works with any project or language
+✅ Enforces **SemVer** (`vMAJOR.MINOR.PATCH`)
+✅ Detects code changes and requires version bump before release
+✅ Automatically updates **CHANGELOG.md** in place
+✅ Creates **Git tags** and publishes GitHub releases
+✅ Includes a **dry-run** mode for safe testing
 ✅ Works on **macOS** and **Linux** without dependencies
+
 
 ## 🧠 Usage
 ```bash
@@ -29,6 +30,7 @@ It’s lightweight, portable, and works with *any* language or repository layout
 | `-d, --dry-run`       | Preview all actions without performing any Git changes.                   |
 | `-h, --help`          | Show usage help and exit.                                                 |
 
+
 ## 💡 Example
 ```bash
 ./release.sh --file main.py
@@ -40,6 +42,7 @@ It’s lightweight, portable, and works with *any* language or repository layout
 Proceed with release? [y/N]: y
 🎉 Done! Tagged v2.0.0, updated CHANGELOG, and pushed to origin.
 ```
+
 ## 🧰 Requirements
 - Git
 - GitHub CLI (gh) — optional, only required for publishing GitHub releases.
@@ -49,6 +52,22 @@ Proceed with release? [y/N]: y
 brew install gh     # macOS
 sudo apt install gh # Ubuntu/Debian
 ```
+
+## ⚙️ Installation
+**Clone and make executable:**
+
+```bash
+git clone https://github.com/dsantanu/gh-release-cli.git
+cd gh-release-cli
+chmod +x gh-release-cli
+```
+**Glabal Install**
+```bash
+sudo curl -fsSL https://raw.githubusercontent.com/dsantanu/gh-release-cli/main/gh-release-cli.sh \
+          -o /usr/local/bin/gh-release-cli && sudo chmod +x /usr/local/bin/gh-release-cli
+```
+
+
 ## 🧾 Changelog Example
 A generated changelog looks like this:
 
@@ -65,12 +84,15 @@ All notable changes will be documented in this file.
 - Integrated `--file` and `--dry-run` options
 ```
 
+
 ## 📦 Version History
 See full details in [CHANGELOG.md](https://github.com/dsantanu/gh-release-cli/edit/master/README.md)
+
 
 ## 🧩 License
 Released under the [MIT License](https://github.com/dsantanu/gh-release-cli/blob/master/LICENSE)
 © 2025 Santanu Das ([@dsantanu](https://github.com/dsantanu))
 
+
 ## 🌟 Acknowledgements
-Inspired by the AWS Cost Audit release process — now evolved into a fully universal GitHub release CLI for the DevOps community.
+Inspired by the [AWS Cost Audit](https://github.com/dsantanu/aws-cost-audit) release process — now evolved into a fully universal GitHub release CLI for the DevOps community.

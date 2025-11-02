@@ -5,6 +5,24 @@ This project follows [Semantic Versioning](https://semver.org/) and maintains a 
 
 ---
 
+## v2.0.0 — 2025-11-01
+### 🚀 Major Release — Universal GitHub Release Tool
+- Made it **repository-agnostic** — works with any language or project.
+- Added CLI options:
+  - `--file/-f` to target specific file (default auto-detects main script).
+  - `--message/-m` for custom commit message.
+  - `--dry-run/-d` for preview without any Git actions.
+  - `--help/-h` for usage guide.
+- Added automatic metadata extraction (`# Name`, `# Author`, `# Version`) if available.
+- Implemented **SemVer validation** (`vMAJOR.MINOR.PATCH` format).
+- Added **change detection guard** — prevents release if file modified but version not bumped.
+- Reworked CHANGELOG logic:
+  - Preserves top description header.
+  - Inserts new release entries below header.
+- Added optional GitHub release publishing via `gh`.
+- Cross-platform support for macOS and Linux.
+- Updated README
+
 ## v1.2.0 — 2025-10-31
 ### 🔒 Stability & Safety
 - Added **SemVer format validator**.
