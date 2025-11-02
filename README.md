@@ -23,23 +23,36 @@ It’s lightweight, portable, and works with *any* language or repository layout
 ```bash
 ./release.sh [options]
 ```
-| Option                | Description                                                               |
-| :-------------------- | :------------------------------------------------------------------------ |
-| `-f, --file <path>`   | Target file to extract version metadata (default: first `*.sh` / `*.py`). |
-| `-m, --message <msg>` | Custom commit message (default: “Release <version>”).                     |
-| `-d, --dry-run`       | Preview all actions without performing any Git changes.                   |
-| `-h, --help`          | Show usage help and exit.                                                 |
-
+| Option                | Description                                            |
+| --------------------- | ------------------------------------------------------ |
+| `-f, --file <path>`   | File to find release info (default: `header-info.txt`) |
+| `-m, --message <msg>` | Commit message (default: `"Release <version>"`)        |
+| `-a, --add-all`       | Add all changes with `git add -A` before committing    |
+| `-d, --dry-run`       | Show actions without making changes                    |
+| `-h, --help`          | Show help and exit                                     |
+```
 
 ## 💡 Example
+**Simulate a Release**
 ```bash
-./release.sh --file main.py
+./gh-release.sh \
+  --file header-info.txt \
+  --message "Release v2.1.0 – header file logic and add-all option" \
+  --dry-run
+```
 
+**Create an Actual Release**
+```
+./gh-release.sh \
+  --file header-info.txt \
+  --message "Release v2.1.0 – header file logic and add-all option" \
+  --add-all
+```
 📄 Target file: main.py
 🧾 Version : v2.0.0
 💬 Commit  : Release v2.0.0
-🏷️  Tag Msg : main.py v2.0.0
-Proceed with release? [y/N]: y
+🏷️ Tag Msg : main.py v2.0.0
+Proceed with release? [Y/N]: y
 🎉 Done! Tagged v2.0.0, updated CHANGELOG, and pushed to origin.
 ```
 

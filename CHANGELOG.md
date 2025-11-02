@@ -4,6 +4,21 @@ All notable changes to **gh-release-cli.sh** will be documented in this file.
 This project follows [Semantic Versioning](https://semver.org/) and maintains a single source of truth through its own automation.
 
 ---
+# v2.1.0 - 2025-11-02
+### Added
+- Introduced new **`header-info.txt`** file for clean metadata separation
+- Added support for **Terraform files (`.tf`)** in auto-detection
+- New CLI flag: `--add-all` to perform `git add -A` before commit
+- Displays `Dry Run : true` status when in dry-run mode
+- Renamed main script to `gh-release.sh` (simpler command name)
+
+### Improved
+- Simplified file detection logic
+- Enhanced user feedback with clear visual indicators
+- Maintained backward compatibility with previous version behavior
+
+### Fixed
+- Minor logic consistency improvements for `--dry-run` handling
 
 ## v2.0.0 — 2025-11-01
 ### 🚀 Major Release — Universal GitHub Release Tool
@@ -29,7 +44,6 @@ This project follows [Semantic Versioning](https://semver.org/) and maintains a 
 - Added **branch safety check** to prevent accidental non-`main` releases.
 - Added `git diff`-based change detection to enforce version bump before release.
 
----
 
 ## v1.1.0 — 2025-10-30
 ### ⚙️ Feature Additions
@@ -38,7 +52,6 @@ This project follows [Semantic Versioning](https://semver.org/) and maintains a 
 - Introduced optional tag and commit message prompts.
 - Added GitHub release creation using `gh release create`.
 
----
 
 ## v1.0.0 — 2025-10-29
 ### ✨ Initial Version

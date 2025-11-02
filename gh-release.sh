@@ -3,15 +3,16 @@
 # gh-release-cli.sh — Automated GitHub release helper
 # Name   : Github Release CLI
 # Author : Santanu Das (@dsantanu)  |  License: MIT
-# Version: v2.0.0
+# Version: v2.1.0
 # Desc   : Extract metadata, enforce version bump, prepend
 #          CHANGELOG, create tag and GitHub release (via gh)
 # ==========================================================
 set -euo pipefail
 
 # --- CLI args ---------------------------------------------
-TARGET_FILE=""
-CHANGELOG="CHANGELOG.md"
+HEADER_FILE='header-info.txt'
+CHANGELOG='CHANGELOG.md'
+ADD_ALL=false
 DRY_RUN=false
 
 usage() {
@@ -19,10 +20,12 @@ usage() {
 Usage: $(basename "$0") [options]
 
 Options:
-  -f, --file <path>    File to release
-                       (default: first *.sh or main file)
+  -f, --file <path>    File to find the release info
+                       (default: header-info.txt)
   -m, --message <msg>  Commit message
                        (default: "Release <version>")
+  -a, --add-all        Add file(s) contents to index
+                       (performs: git add -A)
   -d, --dry-run        Show what would be done
                        (without changing anything)
   -h, --help           Show this help and exit
@@ -32,8 +35,9 @@ EOF
 # --- Parse args -------------------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -f|--file) TARGET_FILE="$2"; shift 2 ;;
+    -f|--file) HEADER_FILE="$2"; shift 2 ;;
     -m|--message) USER_COMMIT_MSG="$2"; shift 2 ;;
+    -a|--add-all) ADD_ALL=true; shift ;;
     -d|--dry-run) DRY_RUN=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; usage; exit 1 ;;
@@ -41,18 +45,23 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Determine file ---------------------------------------
-if [[ -z "${TARGET_FILE}" ]]; then
-  TARGET_FILE=$(ls *.sh *.py *.go 2>/dev/null | head -n1 || true)
+if [[ -s "${HEADER_FILE}" ]]; then
+  HEADER_FILE="${HEADER_FILE}"
+else
+  HEADER_FILE=$(\
+      ls *.sh *.py *.go *.tf 2>/dev/null | head -n1 || true\
+  )
 fi
-[[ -z "${TARGET_FILE}" ]] && { echo "❌ No file specified or found."; exit 1; }
-[[ ! -f "${TARGET_FILE}" ]] && { echo "❌ Target file not found: ${TARGET_FILE}"; exit 1; }
 
-echo "📄 Target file: ${TARGET_FILE}"
+[[ -z "${HEADER_FILE}" ]] && { echo "❌ No file specified or found."; exit 1; }
+[[ ! -f "${HEADER_FILE}" ]] && { echo "❌ Target file not found: ${HEADER_FILE}"; exit 1; }
+
+echo "📄 Target file: ${HEADER_FILE}"
 
 # --- Extract optional metadata ----------------------------
-NAME=$(awk -F':' '/^# Name/ {print $2}' "${TARGET_FILE}" | xargs || true)
-AUTHOR=$(awk -F':' '/^# Author/ {print $2}' "${TARGET_FILE}" | xargs || true)
-VERSION=$(awk -F':' '/^# Version/ {print $2}' "${TARGET_FILE}" | xargs || true)
+NAME=$(awk -F':' '/^# Name/ {print $2}' "${HEADER_FILE}" | xargs || true)
+AUTHOR=$(awk -F':' '/^# Author/ {print $2}' "${HEADER_FILE}" | xargs || true)
+VERSION=$(awk -F':' '/^# Version/ {print $2}' "${HEADER_FILE}" | xargs || true)
 
 # --- Handle version ---------------------------------------
 if [[ -z "${VERSION}" ]]; then
@@ -70,11 +79,11 @@ LATEST_TAG=$(git tag --sort=-v:refname | head -n1 || true)
 
 # --- Detect file changes ----------------------------------
 FILE_CHANGED=false
-git diff --name-only -- "$TARGET_FILE" | grep -q "^${TARGET_FILE}$" && FILE_CHANGED=true
-git diff --cached --name-only -- "$TARGET_FILE" | grep -q "^${TARGET_FILE}$" && FILE_CHANGED=true
+git diff --name-only -- "${HEADER_FILE}" | grep -q "^${HEADER_FILE}$" && FILE_CHANGED=true
+git diff --cached --name-only -- "${HEADER_FILE}" | grep -q "^${HEADER_FILE}$" && FILE_CHANGED=true
 
 if [[ "${FILE_CHANGED}" == true && "${VERSION}" == "${LATEST_TAG}" ]]; then
-  echo "⛔ Detected changes in ${TARGET_FILE} but version header is still '${VERSION}'."
+  echo "⛔ Detected changes in ${HEADER_FILE} but version header is still '${VERSION}'."
   echo "   Please bump the version before releasing."
   exit 1
 fi
@@ -93,10 +102,10 @@ echo
 echo "🧾 Version : ${VERSION}"
 echo "💬 Commit  : ${COMMIT_MSG}"
 echo "🏷️ Tag Msg : ${TAG_MSG}"
-echo "📁 File    : ${TARGET_FILE}"
-echo "Dry Run    : ${DRY_RUN}"
-echo
+echo "📁 File    : ${HEADER_FILE}"
 if [[ "${DRY_RUN}" == true ]]; then
+  echo "Dry Run    : ${DRY_RUN}"
+  echo
   echo "💡 Dry run only — no git actions performed."
   exit 0
 fi
@@ -112,13 +121,11 @@ if [[ -f "${CHANGELOG}" ]]; then
     head -n "${HEADER_END_LINE}" "${CHANGELOG}" > "${TMP}"
     echo "" >> "${TMP}"
     echo "## ${VERSION} — ${DATE_STR}" >> "${TMP}"
-    echo "" >> "${TMP}"
     echo "- ${COMMIT_MSG}" >> "${TMP}"
     echo "" >> "${TMP}"
     tail -n +"$((HEADER_END_LINE + 1))" "${CHANGELOG}" >> "${TMP}"
   else
     echo "## ${VERSION} — ${DATE_STR}" > "${TMP}"
-    echo "" >> "${TMP}"
     echo "- ${COMMIT_MSG}" >> "${TMP}"
     echo "" >> "${TMP}"
     cat "${CHANGELOG}" >> "${TMP}"
@@ -133,15 +140,14 @@ else
     echo "---"
     echo ""
     echo "## ${VERSION} — ${DATE_STR}"
-    echo ""
     echo "- ${COMMIT_MSG}"
     echo ""
   } > "${CHANGELOG}"
 fi
 
 # --- Git commit, tag, push --------------------------------
-git add "${TARGET_FILE}" "${CHANGELOG}"
-git commit -m "${COMMIT_MSG}" || true
+[[ ${ADD_ALL} == 'true' ]] && git add -A || true
+git commit -m "${COMMIT_MSG}" . || true
 git tag -a "${VERSION}" -m "${TAG_MSG}"
 git push origin HEAD
 git push origin "${VERSION}"
@@ -149,8 +155,8 @@ git push origin "${VERSION}"
 # --- GitHub release (if gh exists) ------------------------
 if command -v gh >/dev/null 2>&1; then
   echo "📡 Creating GitHub release..."
-  gh release create "${VERSION}" "${TARGET_FILE}" \
-    --title "${NAME:-$(basename "$(pwd)")}" \
+  gh release create "${VERSION}" "${HEADER_FILE}" \
+    --title "${NAME:-$(basename "$(pwd)")} ${VERSION}" \
     --notes-file "${CHANGELOG}"
   echo "✅ GitHub release published."
 else
