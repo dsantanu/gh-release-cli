@@ -1,92 +1,111 @@
 #!/usr/bin/env bash
-# =====================================================================
-#  release.sh — Automated GitHub release helper for AWS Cost Audit
-#  Author : Santanu Das (@dsantanu)
-#  License: MIT
-#  Desc   : Automatically extract metadata, tag the release, and
-#           publish to GitHub using the GitHub CLI (gh).
-# =====================================================================
+# ==========================================================
+# gh-release-cli.sh — Automated GitHub release helper
+# Author : Santanu Das (@dsantanu)  |  License: MIT
+# Version: v1.1.0
+# Desc   : Extract metadata, enforce version bump, prepend
+#          CHANGELOG, create tag and GitHub release (via gh)
+# ========================================================+=
 
 set -euo pipefail
 
-# --- Extract metadata from aws-cost-audit script ----------------------
 SCRIPT="aws-cost-audit.sh"
+CHANGELOG="CHANGELOG.md"
+GITBRANCH="main"
 
-NAME=$(awk -F':' '/^# Name/ {print $2}' "${SCRIPT}" | xargs)
+# --- Metadata from script header -------------------------------------
+NAME=$(awk -F':' '/^# Name/    {print $2}' "${SCRIPT}" | xargs)
+AUTHOR=$(awk -F':' '/^# Author/  {print $2}' "${SCRIPT}" | xargs)
 VERSION=$(awk -F':' '/^# Version/ {print $2}' "${SCRIPT}" | xargs)
-AUTHOR=$(awk -F':' '/^# Author/ {print $2}' "${SCRIPT}" | xargs)
-DESC=$(awk -F':' '/^# Desc/ {print $2}' "${SCRIPT}" | xargs)
+DESC=$(awk -F':' '/^# Desc/     {print $2}' "${SCRIPT}" | xargs)
 
-# --- Sanity checks ----------------------------------------------------
 if [[ -z "${VERSION}" ]]; then
-  echo "❌ Could not determine version from ${SCRIPT}"
+  echo "❌ VERSION not found in script header (expected line: '#  Version: vX.Y.Z')"
   exit 1
 fi
 
-# --- Prepare changelog and release commit -----------------------------
+# --- Guard: detect script changes without version bump ----------------
+# If aws-cost-audit.sh has changes (staged or unstaged) AND the current header
+# VERSION already exists as a tag, we must bump Version before releasing.
+LATEST_TAG=$(git tag --sort=-v:refname | head -n1 || true)
+
+SCRIPT_CHANGED=false
+git diff --name-only -- "${SCRIPT}" | grep -q "^${SCRIPT}$" && SCRIPT_CHANGED=true
+git diff --cached --name-only -- "${SCRIPT}" | grep -q "^${SCRIPT}$" && SCRIPT_CHANGED=true
+
+if [[ "${SCRIPT_CHANGED}" == true && "${VERSION}" == "${LATEST_TAG}" ]]; then
+  echo "⛔ Detected changes in ${SCRIPT} but Version header is still '${VERSION}'."
+  echo "   Bump the header version in ${SCRIPT} (e.g., to vX.Y.Z) and re-run release."
+  exit 1
+fi
+
+# Optional: ensure we’re on main (comment out if you don’t want this)
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [[ "${CURRENT_BRANCH}" != "${GITBRANCH}" ]]; then
+  echo "⚠️  You are on branch: '"${CURRENT_BRANCH}"'...."
+  echo "   But releases are usually cut from '${GITBRANCH}'."
+  read -rp "Proceed anyway? [Y/N]: " PROCEED_NON_MAIN
+  [[ "${PROCEED_NON_MAIN}" =~ ^[Yy]$ ]] || { echo "❎ Aborted."; exit 0; }
+fi
+
+# --- Commit/tag messages ----------------------------------------------
 DEFAULT_COMMIT_MSG="Release ${VERSION}"
 read -rp "Enter commit message [${DEFAULT_COMMIT_MSG}]: " USER_COMMIT_MSG
-COMMIT_MSG="${USER_COMMIT_MSG:-$DEFAULT_COMMIT_MSG}"
+COMMIT_MSG="${USER_COMMIT_MSG:-${DEFAULT_COMMIT_MSG}}"
 
-DEFAULT_TAG_MSG="${NAME} ${VERSION}"
+DEFAULT_TAG_MSG="${NAME:-AWS Cost Audit} ${VERSION}"
 read -rp "Enter tag message [${DEFAULT_TAG_MSG}]: " USER_TAG_MSG
-TAG_MSG="${USER_TAG_MSG:-$DEFAULT_TAG_MSG}"
+TAG_MSG="New Release - ${USER_TAG_MSG:-${DEFAULT_TAG_MSG}}"
 
-# --- Confirm before proceeding ----------------------------------------
 echo
 echo "🧾 Version : ${VERSION}"
 echo "💬 Commit  : ${COMMIT_MSG}"
 echo "🏷️ Tag Msg : ${TAG_MSG}"
-echo ""
 read -rp "Proceed with release? [Y/N]: " CONFIRM
 [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "❎ Aborted."; exit 0; }
 
-# --- Update CHANGELOG before commit ----------------------------------
-CHANGELOG="CHANGELOG.md"
+# --- Prepend CHANGELOG entry (newest on top) --------------------------
 DATE_STR=$(date +"%Y-%m-%d")
-
-# Create or prepend changelog entry
 if [[ -f "${CHANGELOG}" ]]; then
-  TEMP_FILE=$(mktemp)
+  TMP="$(mktemp)"
   {
     echo "## ${VERSION} — ${DATE_STR}"
-    echo ""
+    echo
     echo "- ${COMMIT_MSG}"
-    echo ""
+    echo
     cat "${CHANGELOG}"
-  } > "${TEMP_FILE}"
-  mv "${TEMP_FILE}" "${CHANGELOG}"
+  } > "${TMP}"
+  mv "${TMP}" "${CHANGELOG}"
 else
   {
     echo "# Changelog"
-    echo ""
+    echo
     echo "All notable changes to this project will be documented in this file."
-    echo ""
+    echo
     echo "## ${VERSION} — ${DATE_STR}"
-    echo ""
+    echo
     echo "- ${COMMIT_MSG}"
-    echo ""
+    echo
   } > "${CHANGELOG}"
 fi
 
-# --- Commit, tag, and push in one flow -------------------------------
-git add "$SCRIPT" "${CHANGELOG}"
+# --- Single atomic commit, tag, push ----------------------------------
+git add "${SCRIPT}" "${CHANGELOG}"
 git commit -m "${COMMIT_MSG}" || true
 git tag -a "${VERSION}" -m "${TAG_MSG}"
-git push origin main
+git push origin "${CURRENT_BRANCH}"
 git push origin "${VERSION}"
 
-# --- Optional: Create GitHub release ---------------------------------
+# --- GitHub release (optional) ----------------------------------------
 if command -v gh >/dev/null 2>&1; then
-  echo "📡 Creating GitHub release from updated CHANGELOG..."
-  gh release create "${VERSION}" "$SCRIPT" \
-    --title "${NAME} ${VERSION}" \
+  echo "📡 Creating GitHub release from CHANGELOG..."
+  gh release create "${VERSION}" "${SCRIPT}" \
+    --title "${NAME:-AWS Cost Audit} ${VERSION}" \
     --notes-file "${CHANGELOG}"
   echo "✅ GitHub release published."
 else
   echo "⚠️  GitHub CLI (gh) not found — tag created but release skipped."
-  echo "   Run manually later: gh release create ${VERSION} --title ..."
 fi
 
 echo
-echo "🎉 Done! Tagged ${VERSION} and pushed to origin."
+echo "🎉 Done! Tagged ${VERSION}, updated CHANGELOG, and pushed to origin."
