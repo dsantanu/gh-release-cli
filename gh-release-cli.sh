@@ -2,11 +2,10 @@
 # ==========================================================
 # gh-release-cli.sh — Automated GitHub release helper
 # Author : Santanu Das (@dsantanu)  |  License: MIT
-# Version: v1.1.0
+# Version: v1.2.0
 # Desc   : Extract metadata, enforce version bump, prepend
 #          CHANGELOG, create tag and GitHub release (via gh)
-# ========================================================+=
-
+# ==========================================================
 set -euo pipefail
 
 SCRIPT="aws-cost-audit.sh"
@@ -64,34 +63,53 @@ echo "🏷️ Tag Msg : ${TAG_MSG}"
 read -rp "Proceed with release? [Y/N]: " CONFIRM
 [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "❎ Aborted."; exit 0; }
 
-# --- Prepend CHANGELOG entry (newest on top) --------------------------
+# --- Update CHANGELOG: insert after header section --------------------
 DATE_STR=$(date +"%Y-%m-%d")
+
 if [[ -f "${CHANGELOG}" ]]; then
   TMP="$(mktemp)"
-  {
-    echo "## ${VERSION} — ${DATE_STR}"
-    echo
-    echo "- ${COMMIT_MSG}"
-    echo
-    cat "${CHANGELOG}"
-  } > "${TMP}"
+
+  # Find where the first version section starts or where the header ends
+  HEADER_END_LINE=$(grep -nE '^---|^## ' "${CHANGELOG}" | head -n1 | cut -d: -f1)
+
+  if [[ -n "${HEADER_END_LINE}" ]]; then
+    head -n "${HEADER_END_LINE}" "${CHANGELOG}" > "${TMP}"
+    echo "" >> "${TMP}"
+    echo "## ${VERSION} — ${DATE_STR}" >> "${TMP}"
+    echo "- ${COMMIT_MSG}" >> "${TMP}"
+    tail -n +"$((HEADER_END_LINE + 1))" "${CHANGELOG}" >> "${TMP}"
+  else
+    # fallback if no header marker found
+    {
+      echo "# Changelog"
+      echo ""
+      echo "## ${VERSION} — ${DATE_STR}"
+      echo "- ${COMMIT_MSG}"
+      echo ""
+      cat "${CHANGELOG}"
+    } > "${TMP}"
+  fi
+
   mv "${TMP}" "${CHANGELOG}"
 else
   {
     echo "# Changelog"
-    echo
-    echo "All notable changes to this project will be documented in this file."
-    echo
+    echo ""
+    echo "All notable changes to **AWS Cost Audit** will be documented in this file."
+    echo "This project follows [Semantic Versioning](https://semver.org/)."
+    echo ""
+    echo "---"
+    echo ""
     echo "## ${VERSION} — ${DATE_STR}"
-    echo
     echo "- ${COMMIT_MSG}"
-    echo
+    echo ""
   } > "${CHANGELOG}"
 fi
+#exit 0
 
 # --- Single atomic commit, tag, push ----------------------------------
-git add "${SCRIPT}" "${CHANGELOG}"
-git commit -m "${COMMIT_MSG}" || true
+#git add "${SCRIPT}" "${CHANGELOG}"
+git commit -m "${COMMIT_MSG}" . || true
 git tag -a "${VERSION}" -m "${TAG_MSG}"
 git push origin "${CURRENT_BRANCH}"
 git push origin "${VERSION}"
