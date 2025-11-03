@@ -3,7 +3,6 @@
 # gh-release-cli.sh — Automated GitHub release helper
 # Name   : Github Release CLI
 # Author : Santanu Das (@dsantanu)  |  License: MIT
-# Version: v2.2.0
 # Desc   : Extract metadata, enforce version bump, prepend
 #          CHANGELOG, create tag and GitHub release (via gh)
 # ==========================================================
