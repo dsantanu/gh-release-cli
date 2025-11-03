@@ -5,6 +5,13 @@ This project follows [Semantic Versioning](https://semver.org/) and maintains a 
 
 ---
 
+## v2.2.1 — 2025-11-04
+### ✅ Fixes
+- Prevented `unbound variable` error under `set -u` when `${VERSION}` > `${LATEST_TAG}`.
+- Added safe default for `${CL_MSG}` during changelog preview.
+- Behavior and output remain fully backward-compatible with v2.2.0.
+
+
 ## v2.2.0 - 2025-11-03
 ### Intelligent Release Guard Edition 🧩
 This release makes `gh-release` smarter, safer, and more flexible — introducing full branch awareness, version safety, and changelog intelligence.

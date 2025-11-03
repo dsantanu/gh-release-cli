@@ -88,16 +88,15 @@ if [[ -n "${LATEST_TAG}" ]]; then
     echo "⛔ Version regression: ${VERSION} < ${LATEST_TAG}"
     echo "   You cannot release a version lower than the latest tag."
     exit 1
-  fi
-  if [[ "${VERSION}" == "${LATEST_TAG}" ]]; then
+  elif [[ "${VERSION}" == "${LATEST_TAG}" ]]; then
     if grep -q "^## ${VERSION}" "${CHANGELOG}" 2>/dev/null; then
       CL_MSG='Will be appended under the existing section'
       CL_APPEND_ONLY=true
-      CL_ENTRY='cl_append'
     else
       CL_MSG='Will be inserted as a new section-entry'
-      CL_ENTRY='cl_insert'
     fi
+  else
+    CL_MSG='Will be inserted as a new section-entry'
   fi
 fi
 
