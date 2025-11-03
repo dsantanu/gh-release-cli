@@ -9,15 +9,17 @@
 # ==========================================================
 set -euo pipefail
 
-# --- CLI args ---------------------------------------------
+# --- Initial values ---------------------------------------
 HEADER_FILE='header-info.txt'
 CHANGELOG='CHANGELOG.md'
+CL_MSG='Will be initiated'
 USER_COMMIT_MSG=''
 FILE_CHANGED=false
 ADD_ALL=false
 DRY_RUN=false
 BRANCH=''
 
+# --- CLI args ---------------------------------------------
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [options]
@@ -96,7 +98,7 @@ if [[ -n "${LATEST_TAG}" ]]; then
       CL_MSG='Will be inserted as a new section-entry'
     fi
   else
-    CL_MSG='Will be inserted as a new section-entry'
+    CL_MSG='New section-entry will be created'
   fi
 fi
 
@@ -229,7 +231,7 @@ fi
 # --- GitHub release (if gh exists) ------------------------
 if command -v gh >/dev/null 2>&1; then
   echo "📡 Creating GitHub release..."
-  gh release create "${VERSION}" "${HEADER_FILE}" \
+  gh release create "${VERSION}" \
     --title "${NAME:-$(basename "$(pwd)")} ${VERSION}" \
     --notes-file "${CHANGELOG}"
   echo "✅ GitHub release published."

@@ -5,7 +5,12 @@ This project follows [Semantic Versioning](https://semver.org/) and maintains a 
 
 ---
 
-## v2.2.1 — 2025-11-04
+## v2.2.2 — 2025-11-03
+### ✅ Fixes
+- Display diffrent message when `${VERSION}` > `${LATEST_TAG}`.
+- Excluded `<filename>` parameter from `gh release`.
+
+## v2.2.1 — 2025-11-03
 ### ✅ Fixes
 - Prevented `unbound variable` error under `set -u` when `${VERSION}` > `${LATEST_TAG}`.
 - Added safe default for `${CL_MSG}` during changelog preview.
