@@ -4,7 +4,35 @@ All notable changes to **gh-release-cli.sh** will be documented in this file.
 This project follows [Semantic Versioning](https://semver.org/) and maintains a single source of truth through its own automation.
 
 ---
-# v2.1.0 - 2025-11-02
+
+## v2.2.0 - 2025-11-03
+### Intelligent Release Guard Edition 🧩
+This release makes `gh-release` smarter, safer, and more flexible — introducing full branch awareness, version safety, and changelog intelligence.
+
+#### ✨ Highlights
+- **Branch Validation**
+  - Now warns when releasing from non-`main` or `master` branches.
+  - Added `-b | --branch` option to define a custom release branch.
+  - Interactive confirmation before proceeding ensures accidental releases are avoided.
+
+- **Version Regression Protection**
+  - Prevents releases if the declared version (`${VERSION}`) is *lower than* the latest Git tag.
+  - Displays clear error message and exits safely.
+
+- **Duplicate Version Handling**
+  - If the declared version equals the latest Git tag *and* an entry already exists in `CHANGELOG.md`,
+    the new commit message is appended under that section automatically (macOS/Linux compatible).
+
+- **Cross-Platform Safe `sed`**
+  - Automatically detects OS (`uname -s`) and uses correct `sed -i` syntax for macOS (BSD) and Linux (GNU).
+
+- **Improved Commit/Tag Logic**
+  - Skips tag creation if the tag already exists (`CL_APPEND_ONLY=true`).
+  - Pushes changelog updates cleanly with `git push origin HEAD`.
+  - Minor edge cases in changelog prepend and file detection logic.
+
+
+## v2.1.0 - 2025-11-02
 ### Added
 - Introduced new **`header-info.txt`** file for clean metadata separation
 - Added support for **Terraform files (`.tf`)** in auto-detection
@@ -19,6 +47,7 @@ This project follows [Semantic Versioning](https://semver.org/) and maintains a 
 
 ### Fixed
 - Minor logic consistency improvements for `--dry-run` handling
+
 
 ## v2.0.0 — 2025-11-01
 ### 🚀 Major Release — Universal GitHub Release Tool
@@ -37,6 +66,7 @@ This project follows [Semantic Versioning](https://semver.org/) and maintains a 
 - Added optional GitHub release publishing via `gh`.
 - Cross-platform support for macOS and Linux.
 - Updated README
+
 
 ## v1.2.0 — 2025-10-31
 ### 🔒 Stability & Safety
